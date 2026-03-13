@@ -3,186 +3,382 @@ import cv2
 import numpy as np
 import smtplib
 from email.message import EmailMessage
-from datetime import datetime
 import os
+from PIL import Image, ImageDraw, ImageFont
 
-# ================= SETTINGS & CONFIG =================
+# ================= SETTINGS =================
 SENDER_EMAIL = "mahesh3500m@gmail.com"
-SENDER_PASSWORD = "slqs taon tdau dxxf" 
+SENDER_PASSWORD = "slqs taon tdau dxxf"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
 UPLOAD_FOLDER = "static"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Page Config
-st.set_page_config(page_title="AI Sketch Dark Edition", page_icon="🌙", layout="wide")
+st.set_page_config(page_title="Artifex Sketch Edtion by Mahesh", layout="wide")
 
-# ================= DARK THEME CUSTOM CSS =================
-# This forces the page to be dark and adds neon borders to see everything clearly
+# ================= DARK THEME =================
 st.markdown("""
-    <style>
-    /* Force Dark Background for the whole app */
-    .stApp {
-        background-color: #0E1117;
-        color: #FFFFFF;
-    }
-    
-    /* Sidebar styling */
-    section[data-testid="stSidebar"] {
-        background-color: #1A1C24 !important;
-        border-right: 1px solid #3d3d3d;
-    }
+<style>
+/* Main app background and text */
+.stApp {
+    background-color: #000000;
+    color: #FFFFFF;
+    font-family: 'Segoe UI', sans-serif;
+    letter-spacing: 0.5px;
+}
 
-    /* High Contrast Containers for Images */
-    .img-box {
-        border: 2px solid #4CAF50;
-        border-radius: 15px;
-        padding: 15px;
-        background-color: #161b22;
-        margin-bottom: 20px;
-    }
+/* Sidebar styling */
+section[data-testid="stSidebar"] {
+    background-color: #0A0A0A;
+    border-right: 1px solid #333;
+}
 
-    /* Custom Neon Green Button for Generate */
-    div.stButton > button:first-child {
-        background-color: #2ea043;
-        color: white;
-        border-radius: 8px;
-        border: 1px solid #3fb950;
-        width: 100%;
-        height: 3em;
-        font-size: 18px;
-        font-weight: bold;
-    }
+/* Headings */
+h1, h2, h3 {
+    color: #FFFFFF;
+    text-shadow: 0 0 5px #FFFFFF;
+}
 
-    /* Custom Blue Button for Email */
-    .email-section div.stButton > button:first-child {
-        background-color: #238636; /* Different shade for email */
-        border: 1px solid #2ea043;
-    }
+/* Image container */
+.img-box {
+    border: 2px solid #AAAAAA;
+    border-radius: 15px;
+    padding: 15px;
+    background: #111111;
+    box-shadow: 0 0 10px #222;
+}
 
-    /* Input text color fix */
-    input {
-        color: white !important;
-        background-color: #0d1117 !important;
-    }
-    
-    /* Headers */
-    h1, h2, h3 {
-        color: #58a6ff !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+/* Buttons */
+div.stButton > button:first-child {
+    background: #FFFFFF;
+    color: #000000;
+    border-radius: 8px;
+    height: 3em;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 0 5px #FFF;
+}
 
-# ================= STATE MANAGEMENT =================
+/* Input fields and sliders */
+input, .stSlider {
+    background-color: #111111;
+    color: #FFFFFF;
+    border: 1px solid #555;
+    border-radius: 5px;
+}
+
+/* Toggle switches */
+.stToggle {
+    background-color: #222;
+    border: 1px solid #555;
+}
+
+/* Film grain effect */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: url('https://www.transparenttextures.com/patterns/asfalt-dark.png');
+    opacity: 0.05;
+    pointer-events: none;
+    z-index: 9999;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ================= SESSION =================
 if 'generated_sketch' not in st.session_state:
     st.session_state.generated_sketch = None
+
 if 'sketch_path' not in st.session_state:
     st.session_state.sketch_path = None
 
-# ================= LOGIC FUNCTIONS =================
+
+# ================= SKETCH FUNCTIONS =================
 def convert_to_sketch(image):
+
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (21, 21), 0)
-    sketch = cv2.divide(gray, blur, scale=256)
-    edges = cv2.Canny(gray, 80, 180)
+    blur = cv2.GaussianBlur(gray,(21,21),0)
+    sketch = cv2.divide(gray,blur,scale=256)
+
+    edges = cv2.Canny(gray,80,180)
     edges = cv2.bitwise_not(edges)
-    return cv2.addWeighted(sketch, 0.7, edges, 0.3, 0)
+
+    return cv2.addWeighted(sketch,0.7,edges,0.3,0)
+
 
 def artistic_sketch(image):
+
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    inv = 255 - gray
-    blur = cv2.GaussianBlur(inv, (25,25), 0)
-    sketch = cv2.divide(gray, 255-blur, scale=256)
-    sketch_color = cv2.applyColorMap(sketch, cv2.COLORMAP_OCEAN)
-    return cv2.cvtColor(sketch_color, cv2.COLOR_BGR2GRAY)
+    inv = 255-gray
+    blur = cv2.GaussianBlur(inv,(25,25),0)
+    sketch = cv2.divide(gray,255-blur,scale=256)
 
-def send_email(receiver_email, image_path):
+    sketch_color = cv2.applyColorMap(sketch,cv2.COLORMAP_OCEAN)
+
+    return cv2.cvtColor(sketch_color,cv2.COLOR_BGR2GRAY)
+
+
+# ================= A4 SIZE =================
+def convert_to_a4(image):
+
+    h, w = image.shape[:2]
+
+    # Detect orientation
+    if h > w:
+        # Portrait A4
+        A4_WIDTH = 2480
+        A4_HEIGHT = 3508
+    else:
+        # Landscape A4
+        A4_WIDTH = 3508
+        A4_HEIGHT = 2480
+
+    scale = min(A4_WIDTH / w, A4_HEIGHT / h)
+
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+
+    resized = cv2.resize(image, (new_w, new_h))
+
+    canvas = np.ones((A4_HEIGHT, A4_WIDTH), dtype=np.uint8) * 255
+
+    x_offset = (A4_WIDTH - new_w) // 2
+    y_offset = (A4_HEIGHT - new_h) // 2
+
+    canvas[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
+
+    return canvas
+
+# ================= SIGNATURE =================
+def add_signature(image):
+
+    pil_img = Image.fromarray(image)
+    draw = ImageDraw.Draw(pil_img)
+
     try:
+        font = ImageFont.truetype("C:/Windows/Fonts/seguisbi.ttf",70)
+    except:
+        font = ImageFont.load_default()
+
+    text = "Created On ARTIFEX by Mahesh"
+
+    width,height = pil_img.size
+
+    text_width,text_height = draw.textbbox((0,0),text,font=font)[2:]
+
+    x = width - text_width - 60
+    y = height - text_height - 60
+
+    draw.text((x,y),text,fill=0,font=font)
+
+    return np.array(pil_img)
+
+
+# ================= EMAIL =================
+def send_email(receiver_email,image_path):
+
+    try:
+
         msg = EmailMessage()
-        msg['Subject'] = " Your AI Masterpiece"
-        msg['From'] = f"Sketch Studio AI <{SENDER_EMAIL}>"
+        msg['Subject'] = "Your AI Sketch by Artifex"
+        msg['From'] = SENDER_EMAIL
         msg['To'] = receiver_email
-        msg.set_content("Hi! Attached is your AI-generated sketch.")
-        with open(image_path, 'rb') as f:
-            msg.add_attachment(f.read(), maintype='image', subtype='jpeg', filename="Sketch.jpg")
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as smtp:
+
+        msg.set_content("Attached is your Artifex generated sketch by Mahesh & Baskar.")
+
+        with open(image_path,'rb') as f:
+            msg.add_attachment(
+                f.read(),
+                maintype='image',
+                subtype='jpeg',
+                filename="Sketch.jpg"
+            )
+
+        with smtplib.SMTP(SMTP_SERVER,SMTP_PORT) as smtp:
+
             smtp.starttls()
-            smtp.login(SENDER_EMAIL, SENDER_PASSWORD)
+            smtp.login(SENDER_EMAIL,SENDER_PASSWORD)
             smtp.send_message(msg)
+
         return True
-    except: return False
 
-# ================= UI LAYOUT =================
-st.title("B & W  Sketch Generation")
-st.markdown("If you couldn't see anything before, this **High-Contrast Dark Theme** will fix it.")
+    except:
+        return False
 
-# Sidebar
+
+# ================= UI =================
+st.title("Artifex B & W Sketch Generation")
+
 with st.sidebar:
-    st.header(" Settings")
-    email_user = st.text_input("Receiver Email", placeholder="email@domain.com")
-    style = st.radio("Sketch Style", ["Quick Sketch", "Artistic Sketch"])
-    st.divider()
-    st.info("The dark background prevents 'white-out' on bright screens.")
 
-# Body
-col_in1, col_in2 = st.columns(2)
+    st.header("Settings")
 
-with col_in1:
-    st.subheader("1. Pick Image")
-    up_file = st.file_uploader("Upload", type=["jpg", "png", "jpeg"])
-    
-with col_in2:
-    st.subheader("2. Take Photo")
-    cam_file = st.camera_input("Smile!")
+    email_user = st.text_input("Receiver Email")
+
+    style = st.radio("Sketch Style",
+                     ["Quick Sketch","Artistic Sketch"])
+
+
+col1,col2 = st.columns(2)
+
+with col1:
+
+    st.subheader("Upload Image")
+
+    up_file = st.file_uploader("Upload Photo",
+                               type=["jpg","png","jpeg"])
+
+
+with col2:
+
+    st.subheader("Camera")
+
+    cam_file = st.camera_input("Take Photo")
+
 
 source = up_file if up_file else cam_file
 
-if source:
-    # Read Image
-    raw_bytes = np.frombuffer(source.getvalue(), np.uint8)
-    img_bgr = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
-    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
-    if st.button("🚀 CREATE SKETCH"):
+# ================= PROCESS =================
+if source:
+
+    raw_bytes = np.frombuffer(source.getvalue(),np.uint8)
+
+    img_bgr = cv2.imdecode(raw_bytes,cv2.IMREAD_COLOR)
+
+    img_rgb = cv2.cvtColor(img_bgr,cv2.COLOR_BGR2RGB)
+
+    if st.button("CREATE SKETCH"):
+
         with st.spinner("Processing..."):
-            res = convert_to_sketch(img_bgr) if style == "Quick Sketch" else artistic_sketch(img_bgr)
-            st.session_state.generated_sketch = res
-            path = os.path.join(UPLOAD_FOLDER, "temp_sketch.jpg")
-            cv2.imwrite(path, res)
+
+            if style=="Quick Sketch":
+                res = convert_to_sketch(img_bgr)
+            else:
+                res = artistic_sketch(img_bgr)
+
+            a4_image = convert_to_a4(res)
+
+            a4_image = add_signature(a4_image)
+
+            st.session_state.generated_sketch = a4_image
+
+            path = os.path.join(UPLOAD_FOLDER,"temp_sketch.jpg")
+
+            cv2.imwrite(path,a4_image)
+
             st.session_state.sketch_path = path
 
-# ================= RESULTS =================
+
+# ================= RESULT =================
 if st.session_state.generated_sketch is not None:
+
     st.divider()
-    r_col1, r_col2 = st.columns(2)
-    
-    with r_col1:
-        st.markdown('<div class="img-box">', unsafe_allow_html=True)
-        st.image(img_rgb, caption="Original", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    with r_col2:
-        st.markdown('<div class="img-box">', unsafe_allow_html=True)
-        st.image(st.session_state.generated_sketch, caption="Sketch Result", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    # Footer Actions
-    st.subheader("3. Export Results")
-    f_col1, f_col2 = st.columns(2)
-    
-    with f_col1:
-        with open(st.session_state.sketch_path, "rb") as f:
-            st.download_button("📥 Download Image", f, "Sketch.jpg", "image/jpeg")
+    r1,r2 = st.columns(2)
 
-    with f_col2:
-        st.markdown('<div class="email-section">', unsafe_allow_html=True)
-        if st.button("📧 Send to Email"):
+    with r1:
+
+        st.markdown('<div class="img-box">',unsafe_allow_html=True)
+
+        st.image(img_rgb,caption="Original")
+
+        st.markdown('</div>',unsafe_allow_html=True)
+
+    with r2:
+
+        st.markdown('<div class="img-box">',unsafe_allow_html=True)
+
+        st.image(st.session_state.generated_sketch,
+                 caption="Sketch by Artifex")
+
+        st.markdown('</div>',unsafe_allow_html=True)
+
+
+    st.subheader("Export")
+
+    colA,colB = st.columns(2)
+
+    with colA:
+
+        with open(st.session_state.sketch_path,"rb") as f:
+
+            st.download_button(
+                "Download Image",
+                f,
+                "Sketch_A4.jpg",
+                "image/jpeg"
+            )
+
+
+    with colB:
+
+        if st.button("Send Email"):
+
             if email_user:
-                if send_email(email_user, st.session_state.sketch_path):
-                    st.success("Sent successfully!")
+
+                if send_email(email_user,
+                              st.session_state.sketch_path):
+
+                    st.success("Email Sent!")
+
                 else:
-                    st.error("Failed to send.")
+
+                    st.error("Email Failed")
+
             else:
-                st.warning("Enter email in sidebar!")
-        st.markdown('</div>', unsafe_allow_html=True)
+
+                st.warning("Enter Email")
+
+
+st.divider()
+
+st.markdown("""
+<style>
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0E1117;
+    color: #FFFFFF;
+    padding: 10px 20px;
+    font-size: 14px;
+}
+.footer-left {
+    text-align: left;
+    flex: 1;
+}
+.footer-center {
+    text-align: center;
+    flex: 1;
+}
+.footer-right {
+    text-align: right;
+    flex: 1;
+}
+.footer a {
+    color: #58a6ff;
+    text-decoration: none;
+}
+.footer a:hover {
+    text-decoration: underline;
+}
+</style>
+
+<div class="footer">
+    <div class="footer-left">
+        Mahesh — Data Science Student, NMC
+    </div>
+    <div class="footer-center">
+        ARTIFEX — The Sketch Generator
+    </div>
+    <div class="footer-right">
+        <a href="mailto:mahesh@example.com">mahesh@example.com</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.caption("© 2026 Artifex — The Sketch Generator by Mahesh & Baskar. All rights reserved. Thank you for using ARTIFEX.")
