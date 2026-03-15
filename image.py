@@ -98,34 +98,43 @@ if 'sketch_path' not in st.session_state:
 
 # ================= SKETCH FUNCTIONS =================
 def convert_to_sketch(image):
-
+    # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray,(21,21),0)
-    sketch = cv2.divide(gray,blur,scale=256)
-
-    edges = cv2.Canny(gray,80,180)
+    # Reduce noise
+    gray = cv2.bilateralFilter(gray, 9, 75, 75)
+    # Invert grayscale
+    inverted = cv2.bitwise_not(gray)
+    # Blur the inverted image
+    blur = cv2.GaussianBlur(inverted, (25, 25), 0)
+    # Create sketch
+    sketch = cv2.divide(gray, 255 - blur, scale=256)
+    # Enhance edges
+    edges = cv2.Canny(gray, 50, 150)
+    # Invert edges
     edges = cv2.bitwise_not(edges)
+    # Blend edges and sketch
+    final = cv2.addWeighted(sketch, 0.8, edges, 0.2, 0)
+    # Sharpen
+    kernel = np.array([[0,-1,0],
+                       [-1,5,-1],
+                       [0,-1,0]])
+    final = cv2.filter2D(final, -1, kernel)
+    return final
 
-    return cv2.addWeighted(sketch,0.7,edges,0.3,0)
-
+# ================= SKETCH FUNCTIONS =================
 
 def artistic_sketch(image):
-
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     inv = 255-gray
     blur = cv2.GaussianBlur(inv,(25,25),0)
     sketch = cv2.divide(gray,255-blur,scale=256)
-
     sketch_color = cv2.applyColorMap(sketch,cv2.COLORMAP_OCEAN)
-
     return cv2.cvtColor(sketch_color,cv2.COLOR_BGR2GRAY)
 
 
 # ================= A4 SIZE =================
 def convert_to_a4(image):
-
     h, w = image.shape[:2]
-
     # Detect orientation
     if h > w:
         # Portrait A4
@@ -163,7 +172,7 @@ def add_signature(image):
     except:
         font = ImageFont.load_default()
 
-    text = "Created On ARTIFEX by Mahesh"
+    text = "Created On ARTIFEX by Mahesh, NMC"
 
     width,height = pil_img.size
 
@@ -213,11 +222,8 @@ def send_email(receiver_email,image_path):
 st.title("Artifex B & W Sketch Generation")
 
 with st.sidebar:
-
     st.header("Settings")
-
     email_user = st.text_input("Receiver Email")
-
     style = st.radio("Sketch Style",
                      ["Quick Sketch","Artistic Sketch"])
 
