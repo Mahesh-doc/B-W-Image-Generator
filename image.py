@@ -7,8 +7,8 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 
 # ================= SETTINGS =================
-SENDER_EMAIL = "mahesh3500m@gmail.com"
-SENDER_PASSWORD = "slqs taon tdau dxxf"
+SENDER_EMAIL = "example@gmail.com"
+SENDER_PASSWORD = "xxxx xxxx xxxx xxxx"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
